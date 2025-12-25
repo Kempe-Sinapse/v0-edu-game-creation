@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Clock, CheckCircle2, XCircle, Trophy, ArrowRight, RotateCcw, Loader2 } from "lucide-react"
+import { Clock, CheckCircle2, XCircle, Trophy, ArrowRight, RotateCcw } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Game, GameQuestion } from "@/lib/types"
 import { cn } from "@/lib/utils"
+// import confetti from "canvas-confetti" // Opcional: Adicione se tiver a lib instalada
 
 interface GamePlayInterfaceProps {
   game: Game
@@ -27,20 +28,26 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
   const router = useRouter()
   
   // -- ESTADOS --
-  const [timeLeft, setTimeLeft] = useState(game?.time_limit || 60)
+  const [timeLeft, setTimeLeft] = useState(game.time_limit)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string[]>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [results, setResults] = useState<Answer[]>([])
   
-  // Controle de palavras
+  // Controle de palavras usadas na questão atual
   const [usedWords, setUsedWords] = useState<Set<string>>(new Set())
   const [shuffledWords, setShuffledWords] = useState<string[]>([])
 
-  // -- VALIDADORES DE SEGURANÇA (Para evitar tela branca) --
-  const hasQuestions = questions && questions.length > 0
-  const currentQuestion = hasQuestions ? questions[currentQuestionIndex] : null
+  const currentQuestion = questions[currentQuestionIndex]
+  // Progresso visual da barra superior
+  const progress = ((currentQuestionIndex + 1) / questions.length) * 100
+
+  // Regex robusto para identificar lacunas (3 ou mais underlines)
+  const parts = currentQuestion?.question_text ? currentQuestion.question_text.split(/_{3,}/g) : []
+  const blanksCount = parts.length - 1
+  
+  const currentAnswers = currentQuestion ? (answers[currentQuestion.id] || []) : []
 
   // -- EFEITOS --
 
@@ -55,20 +62,28 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     ]
     setShuffledWords(words.sort(() => Math.random() - 0.5))
     
-    // Resetar palavras usadas
+    // Resetar palavras usadas (para o visual dos botões)
     const savedAnswers = answers[currentQuestion.id] || []
     setUsedWords(new Set(savedAnswers))
 
-    // REINICIAR O TIMER (Requisito 3)
+    // REINICIAR O TIMER (Requisito: tempo por pergunta)
     setTimeLeft(game.time_limit)
-  }, [currentQuestionIndex, currentQuestion, game.time_limit]) // Dependências corrigidas
+  }, [currentQuestionIndex, currentQuestion, game.time_limit]) 
+  // Nota: Não incluímos 'answers' aqui para evitar re-render loops, pois só queremos rodar na troca de pergunta
 
   // 2. Lógica do Timer
   useEffect(() => {
     if (showResults || isSubmitting) return
 
     if (timeLeft <= 0) {
-      handleNext() // Tempo acabou -> Próxima
+      // Tempo acabou!
+      if (currentQuestionIndex < questions.length - 1) {
+        // Se não for a última, avança
+        handleNext()
+      } else {
+        // Se for a última, finaliza
+        handleSubmitGame()
+      }
       return
     }
 
@@ -77,30 +92,15 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [timeLeft, showResults, isSubmitting])
+  }, [timeLeft, showResults, isSubmitting, currentQuestionIndex, questions.length])
 
   // -- HANDLERS --
-
-  // Se não houver questão carregada, não renderiza lógica
-  if (!currentQuestion) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-[#F7F9F0]">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <span className="ml-2 text-gray-600">Carregando jogo...</span>
-      </div>
-    )
-  }
-
-  // Identificar lacunas com segurança
-  const parts = currentQuestion.question_text ? currentQuestion.question_text.split(/_{3,}/g) : []
-  const blanksCount = parts.length - 1
-  const currentAnswers = answers[currentQuestion.id] || []
 
   const handleWordClick = (word: string) => {
     const currentQuestionAnswers = answers[currentQuestion.id] || []
 
     if (usedWords.has(word)) {
-      // Remove a palavra
+      // Se já usou, remove a palavra (toggle)
       const newAnswers = currentQuestionAnswers.filter((w) => w !== word)
       setAnswers((prev) => ({ ...prev, [currentQuestion.id]: newAnswers }))
       setUsedWords((prev) => {
@@ -109,7 +109,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
         return next
       })
     } else {
-      // Adiciona se houver espaço
+      // Adiciona se houver espaço nas lacunas
       if (currentQuestionAnswers.length < blanksCount) {
         setAnswers((prev) => ({
           ...prev,
@@ -126,7 +126,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
 
     const wordToRemove = currentQuestionAnswers[index]
     const newAnswers = [...currentQuestionAnswers]
-    newAnswers.splice(index, 1)
+    newAnswers.splice(index, 1) // Remove do array mantendo a ordem
 
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: newAnswers }))
     setUsedWords((prev) => {
@@ -144,7 +144,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     }
   }
 
-  const handleSubmitGame = async () => {
+  const handleSubmitGame = useCallback(async () => {
     if (isSubmitting || showResults) return
     setIsSubmitting(true)
 
@@ -153,6 +153,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
       const userAnswers = answers[q.id] || []
       const correctAnswers = q.correct_answers || []
       
+      // Validação
       const isCorrect =
         userAnswers.length === correctAnswers.length &&
         userAnswers.every((ans, idx) => 
@@ -167,19 +168,22 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     setResults(calculatedResults)
     setShowResults(true)
     
-    // Salvar no Supabase
+    // Efeito visual opcional
+    // if (score / questions.length > 0.5) confetti({...})
+
+    // Salvar no banco
     const supabase = createClient()
     await supabase.from("game_attempts").insert({
       game_id: game.id,
       student_id: studentId,
       score,
       total_questions: questions.length,
-      time_taken: 0, // Simplificado
-      answers: calculatedResults,
+      time_taken: 0, 
+      answers: calculatedResults, // O Supabase salvará o JSON completo das respostas
       can_retry: true,
     })
     setIsSubmitting(false)
-  }
+  }, [answers, game, questions, studentId, isSubmitting, showResults])
 
   // -- RENDERIZAÇÃO: TELA DE RESULTADOS --
   if (showResults) {
@@ -205,34 +209,51 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
           </CardHeader>
           
           <CardContent className="p-8">
-            <div className="space-y-4 mb-8 max-h-[50vh] overflow-y-auto pr-2">
+            <div className="space-y-4 mb-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
               {questions.map((q, idx) => {
                 const res = results.find(r => r.questionId === q.id)
                 const isCorrect = res?.isCorrect
-
+                
                 return (
-                  <div key={q.id} className="group flex items-center gap-4 rounded-2xl border-2 border-gray-100 p-4 bg-white hover:border-gray-200 transition-colors">
-                    <div className={cn(
-                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2",
-                      isCorrect 
-                        ? "bg-green-50 border-green-200 text-green-600" 
-                        : "bg-red-50 border-red-200 text-red-600"
-                    )}>
-                      {isCorrect ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
+                  <div key={q.id} className="flex flex-col gap-3 rounded-2xl border-2 border-gray-100 p-4 bg-white hover:border-gray-200 transition-colors">
+                    <div className="flex items-center gap-4">
+                        <div className={cn(
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2",
+                        isCorrect 
+                            ? "bg-green-50 border-green-200 text-green-600" 
+                            : "bg-red-50 border-red-200 text-red-600"
+                        )}>
+                        {isCorrect ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
+                        </div>
+                        <div className="flex-1">
+                        <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+                            Questão {idx + 1}
+                        </p>
+                        <p className="text-base font-semibold text-gray-700 line-clamp-2">
+                            {q.question_text.replace(/_{3,}/g, "___")}
+                        </p>
+                        </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-0.5">
-                        Questão {idx + 1}
-                      </p>
-                      <p className="text-base font-semibold text-gray-700 line-clamp-1">
-                        {q.question_text.replace(/_{3,}/g, "___")}
-                      </p>
+                    
+                    {/* Exibir o que o usuário respondeu vs correto */}
+                    <div className="ml-14 text-sm bg-gray-50 p-3 rounded-lg space-y-1">
+                        <div className="flex gap-2">
+                            <span className="font-bold text-gray-500">Sua resposta:</span>
+                            <span className={cn("font-medium", isCorrect ? "text-green-600" : "text-red-600")}>
+                                {res?.userAnswers && res.userAnswers.length > 0 
+                                    ? res.userAnswers.join(" / ") 
+                                    : "(Não respondeu)"}
+                            </span>
+                        </div>
+                        {!isCorrect && (
+                            <div className="flex gap-2">
+                                <span className="font-bold text-gray-500">Correto:</span>
+                                <span className="font-medium text-green-600">
+                                    {res?.correctAnswers.join(" / ")}
+                                </span>
+                            </div>
+                        )}
                     </div>
-                    {!isCorrect && (
-                       <div className="hidden sm:block text-xs font-semibold text-red-500 bg-red-50 px-3 py-1 rounded-full">
-                         Errou
-                       </div>
-                    )}
                   </div>
                 )
               })}
