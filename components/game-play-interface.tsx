@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Clock, CheckCircle2, XCircle, Trophy, ArrowRight, Loader2, LogOut } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Clock, CheckCircle2, XCircle, Trophy, ArrowRight, RotateCcw, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Game, GameQuestion } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -15,16 +15,18 @@ interface GamePlayInterfaceProps {
   studentId: string
 }
 
+// Interface ajustada para snake_case (padrão do banco)
 interface Answer {
-  questionId: string
-  userAnswers: string[]
-  correctAnswers: string[]
-  isCorrect: boolean
+  question_id: string
+  user_answers: string[]
+  correct_answers: string[]
+  is_correct: boolean
 }
 
 export function GamePlayInterface({ game, questions, studentId }: GamePlayInterfaceProps) {
   const router = useRouter()
   
+  // -- ESTADOS --
   const [timeLeft, setTimeLeft] = useState(game?.time_limit || 60)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string[]>>({})
@@ -38,7 +40,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
   const hasQuestions = questions && questions.length > 0
   const currentQuestion = hasQuestions ? questions[currentQuestionIndex] : null
 
-  // Efeitos (Timer e Inicialização)
+  // -- EFEITOS --
   useEffect(() => {
     if (!currentQuestion) return
 
@@ -69,7 +71,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     return () => clearInterval(timer)
   }, [timeLeft, showResults, isSubmitting])
 
-  // Handlers
+  // -- HANDLERS --
   if (!currentQuestion) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -132,6 +134,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     if (isSubmitting || showResults) return
     setIsSubmitting(true)
 
+    // CORREÇÃO: Usando snake_case para salvar no banco
     const calculatedResults: Answer[] = questions.map((q) => {
       const userAnswers = answers[q.id] || []
       const correctAnswers = q.correct_answers || []
@@ -142,10 +145,15 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
           ans.toLowerCase().trim() === correctAnswers[idx]?.toLowerCase().trim()
         )
 
-      return { questionId: q.id, userAnswers, correctAnswers, isCorrect }
+      return { 
+        question_id: q.id, 
+        user_answers: userAnswers, 
+        correct_answers: correctAnswers, 
+        is_correct: isCorrect 
+      }
     })
 
-    const score = calculatedResults.filter((r) => r.isCorrect).length
+    const score = calculatedResults.filter((r) => r.is_correct).length
     
     setResults(calculatedResults)
     setShowResults(true)
@@ -158,14 +166,14 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
       total_questions: questions.length,
       time_taken: 0, 
       answers: calculatedResults,
-      can_retry: false, // BLOQUEIA NOVAS TENTATIVAS
+      can_retry: false,
     })
     setIsSubmitting(false)
   }
 
   // TELA DE RESULTADOS (MODERNA)
   if (showResults) {
-    const score = results.filter((r) => r.isCorrect).length
+    const score = results.filter((r) => r.is_correct).length
     const percentage = Math.round((score / questions.length) * 100)
 
     return (
@@ -186,8 +194,9 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
           <CardContent className="p-8">
             <div className="space-y-3 mb-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
               {questions.map((q, idx) => {
-                const res = results.find(r => r.questionId === q.id)
-                const isCorrect = res?.isCorrect
+                // CORREÇÃO: Busca usando snake_case
+                const res = results.find(r => r.question_id === q.id)
+                const isCorrect = res?.is_correct
 
                 return (
                   <div key={q.id} className="group flex flex-col gap-2 rounded-lg border border-border p-4 bg-background hover:bg-secondary/50 transition-colors">
@@ -210,13 +219,12 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
                       </div>
                     </div>
                     
-                    {/* Detalhes da Resposta */}
                     <div className="ml-12 text-sm space-y-1 mt-1">
                         <div className="flex gap-2">
                             <span className="text-muted-foreground">Sua resposta:</span>
                             <span className={cn("font-medium", isCorrect ? "text-green-600" : "text-red-600")}>
-                                {res?.userAnswers && res.userAnswers.length > 0 
-                                    ? res.userAnswers.join(" / ") 
+                                {res?.user_answers && res.user_answers.length > 0 
+                                    ? res.user_answers.join(" / ") 
                                     : "(Em branco)"}
                             </span>
                         </div>
@@ -224,7 +232,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
                             <div className="flex gap-2">
                                 <span className="text-muted-foreground">Correto:</span>
                                 <span className="font-medium text-foreground">
-                                    {res?.correctAnswers.join(" / ")}
+                                    {res?.correct_answers ? res.correct_answers.join(" / ") : ""}
                                 </span>
                             </div>
                         )}
@@ -249,15 +257,12 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     )
   }
 
-  // Cores do Timer - Mais sóbrias
   const timerColor = timeLeft <= 10 
     ? "text-red-600 border-red-200 bg-red-50" 
     : "text-foreground border-border bg-background"
 
-  // -- RENDERIZAÇÃO: JOGO --
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
-      {/* Header */}
       <div className="bg-card border-b border-border sticky top-0 z-10 px-6 py-4">
         <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -274,7 +279,6 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
             </div>
           </div>
           
-          {/* Progress Line Slim */}
           <div className="w-full bg-secondary h-1 rounded-full overflow-hidden">
              <div 
                className="h-full bg-primary transition-all duration-1000 ease-linear"
@@ -285,7 +289,6 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
       </div>
 
       <div className="flex-1 p-6 max-w-5xl mx-auto w-full flex flex-col gap-8">
-        {/* Frase */}
         <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Complete a lacuna</CardTitle>
@@ -314,7 +317,6 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
           </CardContent>
         </Card>
 
-        {/* Banco de Palavras */}
         <div className="flex-1">
           <div className="flex flex-wrap justify-center gap-3">
             {shuffledWords.map((word, idx) => {
@@ -338,7 +340,6 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
           </div>
         </div>
 
-        {/* Footer */}
         <div className="mt-auto pt-6 flex justify-end">
           <Button 
             onClick={handleNext} 

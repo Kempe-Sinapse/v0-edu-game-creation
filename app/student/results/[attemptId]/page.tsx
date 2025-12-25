@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect, notFound } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Trophy, Check, X, Clock, ArrowLeft, Lock, HelpCircle } from "lucide-react"
+import { Trophy, Check, X, ArrowLeft, Lock, HelpCircle } from "lucide-react"
 import Link from "next/link"
 import type { GameAttempt, Game } from "@/lib/types"
 
@@ -15,7 +15,7 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
 
   const { data: attempt, error } = await supabase
     .from("game_attempts")
-    .select(`*, games(*)`) // Fetch full game data including reveal_answers
+    .select(`*, games(*)`)
     .eq("id", attemptId)
     .eq("student_id", user.id)
     .single()
@@ -25,7 +25,7 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
   const typedAttempt = attempt as GameAttempt & { games: Game }
   const game = typedAttempt.games
   const percentage = Math.round((typedAttempt.score / typedAttempt.total_questions) * 100)
-  const reveal = game.reveal_answers ?? true // Default true se null
+  const reveal = game.reveal_answers ?? true
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -70,44 +70,51 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
         </h3>
 
         <div className="space-y-4">
-          {typedAttempt.answers.map((answer, index) => (
-            <Card key={index} className="border-border bg-card">
-              <CardContent className="p-5">
-                <div className="flex items-start gap-4">
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
-                    reveal 
-                      ? (answer.is_correct ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500")
-                      : "bg-secondary border-border text-muted-foreground"
-                  }`}>
-                    {reveal 
-                      ? (answer.is_correct ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />)
-                      : <span className="text-xs font-bold">{index + 1}</span>
-                    }
-                  </div>
-                  
-                  <div className="flex-1 space-y-2">
-                    <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Questão {index + 1}</p>
-                    
-                    <div className="p-3 bg-secondary/30 rounded-md border border-white/5">
-                      <span className="text-xs text-muted-foreground block mb-1">Sua resposta:</span>
-                      <p className={`font-medium ${reveal ? (answer.is_correct ? "text-green-400" : "text-red-400") : "text-foreground"}`}>
-                        {answer.user_answers && answer.user_answers.length > 0 ? answer.user_answers.join(" / ") : "(Em branco)"}
-                      </p>
-                    </div>
+          {typedAttempt.answers.map((answer: any, index: number) => {
+            // Suporte híbrido para snake_case (novo) e camelCase (velho)
+            const isCorrect = answer.is_correct ?? answer.isCorrect
+            const userAnswers = answer.user_answers || answer.userAnswers || []
+            const correctAnswers = answer.correct_answers || answer.correctAnswers || []
 
-                    {reveal && !answer.is_correct && (
-                      <div className="p-3 bg-green-500/5 rounded-md border border-green-500/10">
-                        <span className="text-xs text-green-500/70 block mb-1">Gabarito:</span>
-                        <p className="font-medium text-green-400">
-                          {answer.correct_answers.join(" / ")}
+            return (
+              <Card key={index} className="border-border bg-card">
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                      reveal 
+                        ? (isCorrect ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500")
+                        : "bg-secondary border-border text-muted-foreground"
+                    }`}>
+                      {reveal 
+                        ? (isCorrect ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />)
+                        : <span className="text-xs font-bold">{index + 1}</span>
+                      }
+                    </div>
+                    
+                    <div className="flex-1 space-y-2">
+                      <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Questão {index + 1}</p>
+                      
+                      <div className="p-3 bg-secondary/30 rounded-md border border-white/5">
+                        <span className="text-xs text-muted-foreground block mb-1">Sua resposta:</span>
+                        <p className={`font-medium ${reveal ? (isCorrect ? "text-green-400" : "text-red-400") : "text-foreground"}`}>
+                          {userAnswers.length > 0 ? userAnswers.join(" / ") : "(Em branco)"}
                         </p>
                       </div>
-                    )}
+
+                      {reveal && !isCorrect && (
+                        <div className="p-3 bg-green-500/5 rounded-md border border-green-500/10">
+                          <span className="text-xs text-green-500/70 block mb-1">Gabarito:</span>
+                          <p className="font-medium text-green-400">
+                            {correctAnswers.join(" / ")}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
 
         <div className="mt-8">
