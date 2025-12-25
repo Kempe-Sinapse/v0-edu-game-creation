@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Clock, CheckCircle2, XCircle, Trophy, ArrowRight, RotateCcw, Loader2 } from "lucide-react"
+import { Clock, CheckCircle2, XCircle, Trophy, ArrowRight, RotateCcw, Loader2, X, Check } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Game, GameQuestion } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -15,7 +15,6 @@ interface GamePlayInterfaceProps {
   studentId: string
 }
 
-// Interface ajustada para snake_case (padrão do banco)
 interface Answer {
   question_id: string
   user_answers: string[]
@@ -41,6 +40,8 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
   const currentQuestion = hasQuestions ? questions[currentQuestionIndex] : null
 
   // -- EFEITOS --
+  
+  // 1. Inicializa palavras e Timer quando a pergunta muda
   useEffect(() => {
     if (!currentQuestion) return
 
@@ -54,13 +55,18 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     setUsedWords(new Set(savedAnswers))
 
     setTimeLeft(game.time_limit)
-  }, [currentQuestionIndex, currentQuestion, game.time_limit])
+  }, [currentQuestionIndex, currentQuestion, game.time_limit]) // answers removido de deps para evitar loop
 
+  // 2. Lógica do Timer
   useEffect(() => {
     if (showResults || isSubmitting) return
 
     if (timeLeft <= 0) {
-      handleNext()
+      if (currentQuestionIndex < questions.length - 1) {
+        handleNext()
+      } else {
+        handleSubmitGame()
+      }
       return
     }
 
@@ -69,9 +75,10 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [timeLeft, showResults, isSubmitting])
+  }, [timeLeft, showResults, isSubmitting, currentQuestionIndex, questions.length])
 
   // -- HANDLERS --
+
   if (!currentQuestion) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -134,7 +141,6 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     if (isSubmitting || showResults) return
     setIsSubmitting(true)
 
-    // CORREÇÃO: Usando snake_case para salvar no banco
     const calculatedResults: Answer[] = questions.map((q) => {
       const userAnswers = answers[q.id] || []
       const correctAnswers = q.correct_answers || []
@@ -171,7 +177,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     setIsSubmitting(false)
   }
 
-  // TELA DE RESULTADOS (MODERNA)
+  // TELA DE RESULTADOS (MODERNA - DARK)
   if (showResults) {
     const score = results.filter((r) => r.is_correct).length
     const percentage = Math.round((score / questions.length) * 100)
@@ -183,7 +189,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
               <Trophy className="h-10 w-10 text-primary" />
             </div>
-            <CardTitle className="text-3xl font-bold tracking-tight mb-2">
+            <CardTitle className="text-3xl font-bold tracking-tight mb-2 text-foreground">
               Avaliação Concluída
             </CardTitle>
             <CardDescription className="text-lg">
@@ -194,7 +200,6 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
           <CardContent className="p-8">
             <div className="space-y-3 mb-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
               {questions.map((q, idx) => {
-                // CORREÇÃO: Busca usando snake_case
                 const res = results.find(r => r.question_id === q.id)
                 const isCorrect = res?.is_correct
 
@@ -213,7 +218,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
                         <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                           Questão {idx + 1}
                         </span>
-                        <p className="text-sm font-medium mt-1">
+                        <p className="text-sm font-medium mt-1 text-foreground">
                           {q.question_text.replace(/_{3,}/g, "___")}
                         </p>
                       </div>
@@ -222,7 +227,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
                     <div className="ml-12 text-sm space-y-1 mt-1">
                         <div className="flex gap-2">
                             <span className="text-muted-foreground">Sua resposta:</span>
-                            <span className={cn("font-medium", isCorrect ? "text-green-600" : "text-red-600")}>
+                            <span className={cn("font-medium", isCorrect ? "text-green-500" : "text-red-500")}>
                                 {res?.user_answers && res.user_answers.length > 0 
                                     ? res.user_answers.join(" / ") 
                                     : "(Em branco)"}
@@ -257,12 +262,21 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
     )
   }
 
+  // TIMER COLORS (DARK THEME)
   const timerColor = timeLeft <= 10 
-    ? "text-red-600 border-red-200 bg-red-50" 
-    : "text-foreground border-border bg-background"
+    ? "text-red-500 border-red-500/30 bg-red-500/10 animate-pulse" 
+    : "text-foreground border-border bg-secondary/30"
 
+  const progressColor = timeLeft <= 10 
+    ? "bg-red-500" 
+    : timeLeft <= 30 
+      ? "bg-orange-500" 
+      : "bg-primary"
+
+  // -- RENDERIZAÇÃO: JOGO --
   return (
-    <div className="min-h-screen bg-background flex flex-col font-sans">
+    <div className="min-h-screen bg-background flex flex-col font-sans text-foreground">
+      {/* Header */}
       <div className="bg-card border-b border-border sticky top-0 z-10 px-6 py-4">
         <div className="max-w-5xl mx-auto w-full flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -281,7 +295,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
           
           <div className="w-full bg-secondary h-1 rounded-full overflow-hidden">
              <div 
-               className="h-full bg-primary transition-all duration-1000 ease-linear"
+               className={cn("h-full transition-all duration-1000 ease-linear", progressColor)}
                style={{ width: `${(timeLeft / game.time_limit) * 100}%` }}
              />
           </div>
@@ -289,6 +303,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
       </div>
 
       <div className="flex-1 p-6 max-w-5xl mx-auto w-full flex flex-col gap-8">
+        {/* Frase */}
         <Card className="border border-border shadow-sm bg-card">
           <CardHeader className="pb-2">
              <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Complete a lacuna</CardTitle>
@@ -317,6 +332,7 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
           </CardContent>
         </Card>
 
+        {/* Banco de Palavras */}
         <div className="flex-1">
           <div className="flex flex-wrap justify-center gap-3">
             {shuffledWords.map((word, idx) => {
