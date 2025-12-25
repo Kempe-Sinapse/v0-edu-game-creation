@@ -1,10 +1,9 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -18,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Plus, Users, UserPlus, Trash2 } from "lucide-react"
+import { ArrowLeft, Plus, Users, UserPlus, Trash2, GraduationCap, School, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -42,9 +41,6 @@ export function ClassesManager({ teacherId, initialClasses, initialStudents }: C
   const [selectedClass, setSelectedClass] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
 
-  console.log("[v0] ClassesManager - Alunos iniciais:", initialStudents)
-  console.log("[v0] ClassesManager - Total de alunos:", students.length)
-
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -65,6 +61,7 @@ export function ClassesManager({ teacherId, initialClasses, initialStudents }: C
       setNewClassName("")
       setNewClassDescription("")
       setIsCreateOpen(false)
+      router.refresh()
     }
 
     setIsLoading(false)
@@ -110,249 +107,269 @@ export function ClassesManager({ teacherId, initialClasses, initialStudents }: C
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-      <header className="border-b-4 border-green-600 bg-white shadow-lg">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-5">
-          <Link href="/teacher">
-            <Button variant="ghost" size="icon" className="hover:bg-green-100">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-green-800">Gerenciar Turmas</h1>
-            <p className="text-base text-gray-600">Crie turmas e atribua alunos</p>
-          </div>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-green-600 hover:bg-green-700 text-white font-semibold">
-                <Plus className="mr-2 h-4 w-4" />
-                Nova Turma
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Header com Glassmorphism */}
+      <header className="border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-10">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Link href="/teacher">
+              <Button variant="ghost" size="icon" className="hover:bg-white/5">
+                <ArrowLeft className="h-5 w-5" />
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <form onSubmit={handleCreateClass}>
-                <DialogHeader>
-                  <DialogTitle>Criar Nova Turma</DialogTitle>
-                  <DialogDescription>Adicione uma nova turma para seus alunos</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="class-name">Nome da Turma *</Label>
-                    <Input
-                      id="class-name"
-                      placeholder="ex: 3º Ano - Biologia"
-                      value={newClassName}
-                      onChange={(e) => setNewClassName(e.target.value)}
-                      required
-                    />
+            </Link>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Gerenciamento de Turmas</h1>
+              <p className="text-sm text-muted-foreground">Organize seus alunos e grupos de estudo</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="hidden sm:flex border-white/10 hover:bg-white/5">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Atribuir Aluno
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-card border-white/10">
+                <form onSubmit={handleAssignStudent}>
+                  <DialogHeader>
+                    <DialogTitle>Atribuir Aluno à Turma</DialogTitle>
+                    <DialogDescription>Selecione o aluno e a turma de destino.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Aluno</Label>
+                      <Select value={selectedStudent} onValueChange={setSelectedStudent} required>
+                        <SelectTrigger className="bg-secondary/50 border-white/10">
+                          <SelectValue placeholder="Selecione um aluno" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {students.map((student) => (
+                            <SelectItem key={student.id} value={student.id}>
+                              {student.display_name} {student.class_id && "(Já possui turma)"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Turma de Destino</Label>
+                      <Select value={selectedClass} onValueChange={setSelectedClass} required>
+                        <SelectTrigger className="bg-secondary/50 border-white/10">
+                          <SelectValue placeholder="Selecione uma turma" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none" className="text-destructive focus:text-destructive">
+                            Remover de qualquer turma
+                          </SelectItem>
+                          {classes.map((classItem) => (
+                            <SelectItem key={classItem.id} value={classItem.id}>
+                              {classItem.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="class-description">Descrição</Label>
-                    <Textarea
-                      id="class-description"
-                      placeholder="Informações sobre a turma"
-                      value={newClassDescription}
-                      onChange={(e) => setNewClassDescription(e.target.value)}
-                      rows={3}
-                    />
+                  <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={() => setIsAssignOpen(false)}>Cancelar</Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? "Salvando..." : "Confirmar Atribuição"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="font-bold shadow-lg shadow-primary/20">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nova Turma
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-card border-white/10">
+                <form onSubmit={handleCreateClass}>
+                  <DialogHeader>
+                    <DialogTitle>Criar Nova Turma</DialogTitle>
+                    <DialogDescription>Defina o nome e detalhes da nova turma.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="class-name">Nome da Turma</Label>
+                      <Input
+                        id="class-name"
+                        placeholder="Ex: Biologia - 3º Ano A"
+                        value={newClassName}
+                        onChange={(e) => setNewClassName(e.target.value)}
+                        required
+                        className="bg-secondary/50 border-white/10"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="class-description">Descrição (Opcional)</Label>
+                      <Textarea
+                        id="class-description"
+                        placeholder="Detalhes adicionais sobre a turma..."
+                        value={newClassDescription}
+                        onChange={(e) => setNewClassDescription(e.target.value)}
+                        rows={3}
+                        className="bg-secondary/50 border-white/10 resize-none"
+                      />
+                    </div>
                   </div>
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? "Criando..." : "Criar Turma"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={() => setIsCreateOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? "Criando..." : "Criar Turma"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8 space-y-8">
-        {/* Lista de Turmas */}
-        <Card className="border-2 border-green-200">
-          <CardHeader className="bg-green-50">
-            <CardTitle className="text-green-900 flex items-center">
-              <Users className="mr-2 h-6 w-6" />
-              Minhas Turmas
-            </CardTitle>
-            <CardDescription>Gerencie suas turmas e veja os alunos matriculados</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {classes.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-600 mb-4">Você ainda não criou nenhuma turma</p>
-                <Button onClick={() => setIsCreateOpen(true)} className="bg-green-600 hover:bg-green-700">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Criar Primeira Turma
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {classes.map((classItem) => {
-                  const studentsInClass = students.filter((s) => s.class_id === classItem.id)
+        
+        {/* Grid de Turmas */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {/* Card de "Todas as Turmas" ou Estatística Geral (Opcional, mas dá um charme) */}
+          <Card className="bg-gradient-to-br from-primary/20 to-secondary/30 border-primary/20 backdrop-blur-sm flex flex-col justify-center items-center text-center p-6 min-h-[200px]">
+            <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center mb-4 text-primary">
+              <School className="h-6 w-6" />
+            </div>
+            <h3 className="text-2xl font-bold text-white">{classes.length}</h3>
+            <p className="text-muted-foreground">Turmas Ativas</p>
+          </Card>
 
-                  return (
-                    <Card key={classItem.id} className="border-2 border-green-300">
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-xl">{classItem.name}</CardTitle>
-                            {classItem.description && (
-                              <CardDescription className="mt-1">{classItem.description}</CardDescription>
-                            )}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteClass(classItem.id)}
-                            className="text-red-600 hover:bg-red-100"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Users className="h-4 w-4" />
-                          <span className="font-semibold">
-                            {studentsInClass.length} {studentsInClass.length === 1 ? "aluno" : "alunos"}
-                          </span>
-                        </div>
-                        {studentsInClass.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {studentsInClass.map((student) => (
-                              <span
-                                key={student.id}
-                                className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800"
-                              >
-                                {student.display_name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          {classes.map((classItem) => {
+            const studentsInClass = students.filter((s) => s.class_id === classItem.id)
 
-        {/* Atribuir Alunos */}
-        <Card className="border-2 border-blue-200">
-          <CardHeader className="bg-blue-50">
-            <CardTitle className="text-blue-900 flex items-center">
-              <UserPlus className="mr-2 h-6 w-6" />
-              Atribuir Alunos às Turmas
-            </CardTitle>
-            <CardDescription>Selecione um aluno e a turma para atribuir</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {students.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-600 mb-2">Nenhum aluno cadastrado no sistema</p>
-                <p className="text-sm text-gray-500">Os alunos precisam se cadastrar primeiro na plataforma</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
-                  <DialogTrigger asChild>
+            return (
+              <Card key={classItem.id} className="group bg-card border-white/5 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 flex flex-col">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div className="h-10 w-10 rounded-lg bg-secondary/50 flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                      <GraduationCap className="h-5 w-5" />
+                    </div>
                     <Button
-                      variant="outline"
-                      className="w-full border-2 border-blue-400 text-blue-700 hover:bg-blue-50 bg-transparent"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteClass(classItem.id)}
+                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 -mt-1 -mr-2"
                     >
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Atribuir Aluno
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <form onSubmit={handleAssignStudent}>
-                      <DialogHeader>
-                        <DialogTitle>Atribuir Aluno à Turma</DialogTitle>
-                        <DialogDescription>Selecione o aluno e a turma</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label>Aluno</Label>
-                          <Select value={selectedStudent} onValueChange={setSelectedStudent} required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione um aluno" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {students.map((student) => (
-                                <SelectItem key={student.id} value={student.id}>
-                                  {student.display_name} {student.class_id && "(já tem turma)"}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                  </div>
+                  <CardTitle className="mt-4 text-lg">{classItem.name}</CardTitle>
+                  <CardDescription className="line-clamp-2">
+                    {classItem.description || "Sem descrição definida."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                    <Users className="h-4 w-4" />
+                    <span className="font-medium text-foreground">{studentsInClass.length}</span> alunos matriculados
+                  </div>
+                  
+                  {studentsInClass.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {studentsInClass.slice(0, 3).map((student) => (
+                        <span
+                          key={student.id}
+                          className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary/50 text-secondary-foreground border border-white/5"
+                        >
+                          {student.display_name.split(' ')[0]}
+                        </span>
+                      ))}
+                      {studentsInClass.length > 3 && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary/30 text-muted-foreground border border-white/5">
+                          +{studentsInClass.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Nenhum aluno nesta turma.</p>
+                  )}
+                </CardContent>
+                <CardFooter className="pt-0">
+                  <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary w-1/3 opacity-50 group-hover:w-full group-hover:opacity-100 transition-all duration-700 ease-out" />
+                  </div>
+                </CardFooter>
+              </Card>
+            )
+          })}
+        </div>
+
+        {/* Lista Geral de Alunos (Tabela simplificada) */}
+        <Card className="border border-white/5 bg-card/50 backdrop-blur-sm">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Todos os Alunos</CardTitle>
+                <CardDescription>Visão geral de todos os estudantes cadastrados na plataforma</CardDescription>
+              </div>
+              <DialogTrigger asChild onClick={() => setIsAssignOpen(true)}>
+                 <Button variant="outline" size="sm" className="border-white/10 sm:hidden">
+                    <UserPlus className="h-4 w-4" />
+                 </Button>
+              </DialogTrigger>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {students.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-white/10 rounded-lg">
+                <Users className="mx-auto h-12 w-12 text-muted-foreground/50 mb-3" />
+                <p className="text-muted-foreground">Nenhum aluno cadastrado no sistema ainda.</p>
+                <p className="text-sm text-muted-foreground/60 mt-1">Os alunos precisam criar uma conta primeiro.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {students.map((student) => {
+                  const studentClass = classes.find((c) => c.id === student.class_id)
+                  return (
+                    <div key={student.id} className="flex items-center justify-between py-4 hover:bg-white/5 transition-colors px-2 rounded-lg -mx-2">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs">
+                          {student.display_name.charAt(0).toUpperCase()}
                         </div>
-                        <div className="space-y-2">
-                          <Label>Turma</Label>
-                          <Select value={selectedClass} onValueChange={setSelectedClass} required>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione uma turma" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Remover de turma</SelectItem>
-                              {classes.map((classItem) => (
-                                <SelectItem key={classItem.id} value={classItem.id}>
-                                  {classItem.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                        <div>
+                          <p className="font-medium text-sm text-foreground">{student.display_name}</p>
+                          <p className="text-xs text-muted-foreground">{student.email}</p>
                         </div>
                       </div>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsAssignOpen(false)}>
-                          Cancelar
-                        </Button>
-                        <Button type="submit" disabled={isLoading}>
-                          {isLoading ? "Atribuindo..." : "Atribuir"}
-                        </Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-
-                {/* Lista de todos os alunos */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">Todos os Alunos ({students.length})</h3>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {students.map((student) => {
-                      const studentClass = classes.find((c) => c.id === student.class_id)
-
-                      return (
-                        <div
-                          key={student.id}
-                          className="flex items-center justify-between rounded-lg border-2 border-gray-200 p-3 hover:bg-gray-50"
+                      
+                      <div className="flex items-center gap-4">
+                        {studentClass ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                            {studentClass.name}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-muted-foreground">
+                            Sem turma
+                          </span>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-muted-foreground hover:text-white"
+                          onClick={() => {
+                            setSelectedStudent(student.id)
+                            setIsAssignOpen(true)
+                          }}
                         >
-                          <div>
-                            <p className="font-semibold text-gray-900">{student.display_name}</p>
-                            <p className="text-sm text-gray-600">{student.email}</p>
-                          </div>
-                          <div className="text-right">
-                            {studentClass ? (
-                              <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
-                                {studentClass.name}
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
-                                Sem turma
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </CardContent>
