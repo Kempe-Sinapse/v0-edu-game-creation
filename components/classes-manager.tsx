@@ -238,7 +238,7 @@ export function ClassesManager({ teacherId, initialClasses, initialStudents }: C
         
         {/* Grid de Turmas */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Card de "Todas as Turmas" ou Estatística Geral (Opcional, mas dá um charme) */}
+          {/* Card de "Todas as Turmas" */}
           <Card className="bg-gradient-to-br from-primary/20 to-secondary/30 border-primary/20 backdrop-blur-sm flex flex-col justify-center items-center text-center p-6 min-h-[200px]">
             <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center mb-4 text-primary">
               <School className="h-6 w-6" />
@@ -307,7 +307,7 @@ export function ClassesManager({ teacherId, initialClasses, initialStudents }: C
           })}
         </div>
 
-        {/* Lista Geral de Alunos (Tabela simplificada) */}
+        {/* Lista Geral de Alunos */}
         <Card className="border border-white/5 bg-card/50 backdrop-blur-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -315,11 +315,15 @@ export function ClassesManager({ teacherId, initialClasses, initialStudents }: C
                 <CardTitle className="text-lg">Todos os Alunos</CardTitle>
                 <CardDescription>Visão geral de todos os estudantes cadastrados na plataforma</CardDescription>
               </div>
-              <DialogTrigger asChild onClick={() => setIsAssignOpen(true)}>
-                 <Button variant="outline" size="sm" className="border-white/10 sm:hidden">
-                    <UserPlus className="h-4 w-4" />
-                 </Button>
-              </DialogTrigger>
+              {/* CORREÇÃO: Substituído DialogTrigger por Button direto */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="border-white/10 sm:hidden"
+                onClick={() => setIsAssignOpen(true)}
+              >
+                <UserPlus className="h-4 w-4" />
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
