@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,11 +10,11 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, Suspense } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Hexagon, ArrowLeft, Loader2 } from "lucide-react"
 
 function SignUpForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [repeatPassword, setRepeatPassword] = useState("")
   const [displayName, setDisplayName] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -29,14 +28,8 @@ function SignUpForm() {
     setIsLoading(true)
     setError(null)
 
-    if (password !== repeatPassword) {
-      setError("As senhas não coincidem")
-      setIsLoading(false)
-      return
-    }
-
     if (password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres")
+      setError("A senha deve ter no mínimo 6 caracteres")
       setIsLoading(false)
       return
     }
@@ -56,119 +49,91 @@ function SignUpForm() {
       if (error) throw error
 
       if (data.user) {
-        const { error: loginError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
-
-        if (loginError) {
-          router.push("/auth/sign-up-success")
-        } else {
-          const redirectUrl = role === "teacher" ? "/teacher" : "/student"
-          window.location.href = redirectUrl
-        }
+        // Auto login after signup since email confirm is disabled
+        await supabase.auth.signInWithPassword({ email, password })
+        window.location.href = role === "teacher" ? "/teacher" : "/student"
       }
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Ocorreu um erro")
+    } catch (error: any) {
+      setError(error.message || "Erro ao cadastrar")
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 p-6">
-      <div className="w-full max-w-sm">
-        <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <CardHeader className="space-y-2">
-            <CardTitle className="text-3xl font-bold">
-              {role === "teacher" ? "Cadastro - Professor" : "Cadastro - Aluno"}
-            </CardTitle>
-            <CardDescription className="text-base">Crie sua conta para começar</CardDescription>
+    <div className="flex min-h-screen w-full items-center justify-center bg-background p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[100px]" />
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="mb-8 text-center">
+          <Link href="/" className="inline-flex items-center justify-center mb-4 group">
+            <div className="bg-primary p-2 rounded-xl shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
+              <Hexagon className="h-8 w-8 text-white fill-white/20" />
+            </div>
+          </Link>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Criar Nova Conta</h1>
+          <p className="text-muted-foreground">Junte-se ao Trivu como {role === "teacher" ? "Docente" : "Discente"}</p>
+        </div>
+
+        <Card className="border-white/10 bg-secondary/30 backdrop-blur-xl shadow-2xl">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-xl">Dados de Acesso</CardTitle>
+            <CardDescription>Preencha os dados abaixo para se registrar</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSignUp}>
-              <div className="flex flex-col gap-6">
-                <div className="grid gap-2">
-                  <Label htmlFor="displayName" className="text-base font-semibold">
-                    Nome
-                  </Label>
-                  <Input
-                    id="displayName"
-                    type="text"
-                    placeholder="Seu nome"
-                    required
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="border-2 border-black"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="email" className="text-base font-semibold">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="border-2 border-black"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password" className="text-base font-semibold">
-                    Senha
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="border-2 border-black"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="repeat-password" className="text-base font-semibold">
-                    Repetir Senha
-                  </Label>
-                  <Input
-                    id="repeat-password"
-                    type="password"
-                    required
-                    value={repeatPassword}
-                    onChange={(e) => setRepeatPassword(e.target.value)}
-                    className="border-2 border-black"
-                  />
-                </div>
-                {error && (
-                  <Alert variant="destructive" className="border-2 border-red-600">
-                    <AlertDescription className="font-semibold">{error}</AlertDescription>
-                  </Alert>
-                )}
-                <Button
-                  type="submit"
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold text-lg py-6 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Criando conta..." : "Cadastrar"}
-                </Button>
+            <form onSubmit={handleSignUp} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="displayName">Nome Completo</Label>
+                <Input
+                  id="displayName"
+                  placeholder="Ex: João Silva"
+                  required
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="bg-secondary/50 border-white/10 focus:border-primary/50 text-white"
+                />
               </div>
-              <div className="mt-4 text-center text-sm">
-                Já tem uma conta?{" "}
-                <Link
-                  href={`/auth/login?role=${role}`}
-                  className="font-semibold text-green-700 underline underline-offset-4"
-                >
-                  Fazer login
-                </Link>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="nome@exemplo.com"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-secondary/50 border-white/10 focus:border-primary/50 text-white"
+                />
               </div>
-              <div className="mt-2 text-center text-sm">
-                <Link href="/" className="text-muted-foreground underline underline-offset-4">
-                  Voltar para início
-                </Link>
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-secondary/50 border-white/10 focus:border-primary/50 text-white"
+                />
               </div>
+              
+              {error && (
+                <Alert variant="destructive" className="bg-red-900/20 border-red-900/50 text-red-200">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
+              <Button type="submit" className="w-full font-bold h-11" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Finalizar Cadastro"}
+              </Button>
             </form>
+            
+            <div className="mt-6 text-center text-sm">
+              <span className="text-muted-foreground">Já possui conta? </span>
+              <Link href={`/auth/login?role=${role}`} className="text-primary hover:text-primary/80 font-semibold hover:underline">
+                Fazer login
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -178,7 +143,7 @@ function SignUpForm() {
 
 export default function SignUpPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}>
       <SignUpForm />
     </Suspense>
   )

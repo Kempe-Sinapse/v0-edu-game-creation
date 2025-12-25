@@ -4,58 +4,26 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Trivu Palette - Modern & Academic */
+  /* Trivu Dark Theme - Default */
   
-  /* Background: Off-white frio, quase cinza, para ser clean */
-  --background: 210 40% 98%; 
-  --foreground: 222 47% 11%; /* Slate 900 */
-
-  /* Cards: Branco puro com sombras difusas */
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-
-  /* Primary: Indigo/Violeta para um tom universitário/futurista */
-  --primary: 262 83% 58%; /* Violet 600 */
-  --primary-foreground: 210 40% 98%;
-
-  /* Secondary: Slate suave */
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222 47% 11%;
-
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-
-  --accent: 262 83% 58%;
-  --accent-foreground: 210 40% 98%;
-
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 262 83% 58%;
-
-  /* Raio de borda menor para parecer mais profissional e menos "brinquedo" */
-  --radius: 0.5rem; 
-}
-
-.dark {
-  /* Dark Mode: Deep Space / Cyberpunk suave */
-  --background: 222 47% 11%; /* Slate 950 */
+  /* Background: Slate 950 (Deep Space) */
+  --background: 222 47% 11%;
+  
+  /* Texto Principal: Slate 50 */
   --foreground: 210 40% 98%;
 
-  --card: 217 33% 17%; /* Slate 900 */
+  /* Cards: Slate 900 com leve transparência para glassmorphism */
+  --card: 222 47% 11%;
   --card-foreground: 210 40% 98%;
 
   --popover: 222 47% 11%;
   --popover-foreground: 210 40% 98%;
 
-  --primary: 263 70% 50%; /* Violet 500 */
+  /* Primary: Violet 600 (Futurista/Acadêmico) */
+  --primary: 262 83% 58%;
   --primary-foreground: 210 40% 98%;
 
+  /* Secondary: Slate 800 */
   --secondary: 217 33% 17%;
   --secondary-foreground: 210 40% 98%;
 
@@ -68,9 +36,20 @@
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
 
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
+  /* Bordas sutis para separar elementos no escuro */
+  --border: 217 33% 20%;
+  --input: 217 33% 20%;
   --ring: 263 70% 50%;
+
+  --radius: 0.75rem;
+}
+
+/* Opcional: Manter um tema claro se for absolutamente necessário, 
+   mas o pedido foi focar no conceito "Dark/Noturno". */
+.light {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  /* ... resto das cores claras ... */
 }
 
 @theme inline {
@@ -105,5 +84,9 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    /* Adiciona um gradiente sutil de fundo para profundidade */
+    background-image: radial-gradient(at 50% 0%, hsl(263, 70%, 15%) 0px, transparent 50%),
+                      radial-gradient(at 100% 0%, hsl(222, 47%, 15%) 0px, transparent 50%);
+    background-attachment: fixed;
   }
 }
