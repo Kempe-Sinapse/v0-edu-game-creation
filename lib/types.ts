@@ -5,7 +5,7 @@ export interface Profile {
   email: string
   display_name: string
   role: UserRole
-  class_id: string | null // Adicionado class_id
+  class_id: string | null
   created_at: string
   updated_at: string
 }
@@ -16,19 +16,21 @@ export interface Game {
   title: string
   description: string | null
   time_limit: number
-  class_id: string | null // Adicionado class_id
-  is_published: boolean // Adicionado status de publicação
-  published_at: string | null // Adicionado data de publicação
+  class_id: string | null
+  is_published: boolean
+  published_at: string | null
+  reveal_answers: boolean // Novo campo
   created_at: string
   updated_at: string
 }
 
+// ... restante das interfaces (GameQuestion, GameAttempt, Class, etc.)
 export interface GameQuestion {
   id: string
   game_id: string
   question_text: string
-  correct_answers: string[] // Pode ter até 5 respostas
-  distractors: string[] // Palavras de distração específicas desta pergunta
+  correct_answers: string[]
+  distractors: string[]
   position: number
   created_at: string
 }
@@ -40,17 +42,16 @@ export interface GameAttempt {
   score: number
   total_questions: number
   time_taken: number
-  can_retry: boolean // Adicionado controle de nova tentativa
+  can_retry: boolean
   answers: {
     question_id: string
-    user_answers: string[] // Múltiplas respostas
+    user_answers: string[]
     correct_answers: string[]
     is_correct: boolean
   }[]
   completed_at: string
 }
 
-// Tipo para turmas
 export interface Class {
   id: string
   teacher_id: string

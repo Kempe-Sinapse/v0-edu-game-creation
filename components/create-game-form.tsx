@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Plus, X, ArrowLeft } from "lucide-react"
+import { Plus, X, ArrowLeft, Eye, EyeOff } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -23,6 +23,7 @@ interface Question {
 }
 
 export function CreateGameForm({ teacherId, classes }: { teacherId: string; classes: Class[] }) {
+  // ... (manter imports e states existentes)
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,8 +33,10 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
   const [timeLimit, setTimeLimit] = useState("60")
   const [selectedClass, setSelectedClass] = useState<string>("")
   const [isPublished, setIsPublished] = useState(false)
+  const [revealAnswers, setRevealAnswers] = useState(true) // Novo state
   const [questions, setQuestions] = useState<Question[]>([{ text: "", correctAnswers: [""], distractors: [""] }])
 
+  // ... (funções de addQuestion, removeQuestion, updates etc. mantêm-se iguais)
   const addQuestion = () => {
     setQuestions([...questions, { text: "", correctAnswers: [""], distractors: [""] }])
   }
@@ -92,8 +95,7 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
     setIsLoading(true)
     setError(null)
 
-    console.log("[v0] Iniciando criação de tarefa")
-
+    // ... (validações mantêm-se iguais)
     if (!title.trim()) {
       setError("Por favor, insira um título para a tarefa")
       setIsLoading(false)
@@ -131,8 +133,6 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
     const supabase = createClient()
 
     try {
-      console.log("[v0] Inserindo jogo no banco de dados")
-
       const { data: game, error: gameError } = await supabase
         .from("games")
         .insert({
@@ -143,17 +143,12 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
           class_id: selectedClass || null,
           is_published: isPublished,
           published_at: isPublished ? new Date().toISOString() : null,
+          reveal_answers: revealAnswers, // Adicionado
         })
         .select()
         .single()
 
-      if (gameError) {
-        console.log("[v0] Erro ao criar jogo:", gameError)
-        throw gameError
-      }
-
-      console.log("[v0] Jogo criado com sucesso:", game.id)
-      console.log("[v0] Inserindo perguntas")
+      if (gameError) throw gameError
 
       const questionsData = questions.map((q, index) => ({
         game_id: game.id,
@@ -165,215 +160,213 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
 
       const { error: questionsError } = await supabase.from("game_questions").insert(questionsData)
 
-      if (questionsError) {
-        console.log("[v0] Erro ao criar perguntas:", questionsError)
-        throw questionsError
-      }
+      if (questionsError) throw questionsError
 
-      console.log("[v0] Perguntas criadas com sucesso")
-      console.log("[v0] Redirecionando para dashboard")
-
-      // Usar window.location ao invés de router para garantir reload completo
       window.location.href = "/teacher"
     } catch (err) {
-      console.log("[v0] Erro geral:", err)
       setError(err instanceof Error ? err.message : "Falha ao criar tarefa")
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-      <header className="border-b-4 border-green-600 bg-white shadow-lg">
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Header */}
+      <header className="border-b border-border bg-card sticky top-0 z-10">
         <div className="mx-auto flex max-w-4xl items-center gap-4 px-6 py-4">
           <Link href="/teacher">
-            <Button variant="ghost" size="icon" className="hover:bg-green-100">
+            <Button variant="ghost" size="icon" className="hover:bg-secondary">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Criar Nova Tarefa</h1>
-            <p className="text-sm text-gray-600">Monte seu jogo educacional de completar lacunas</p>
+            <h1 className="text-xl font-bold">Criar Nova Avaliação</h1>
+            <p className="text-sm text-muted-foreground">Configuração da atividade</p>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl px-6 py-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Card className="border-2 border-green-200 shadow-lg">
-            <CardHeader className="bg-green-50">
-              <CardTitle className="text-green-900">Detalhes da Tarefa</CardTitle>
-              <CardDescription>Configure as informações básicas da sua tarefa</CardDescription>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <Card className="border border-border bg-card shadow-sm">
+            <CardHeader className="border-b border-border bg-secondary/20 pb-4">
+              <CardTitle className="text-lg">Informações Gerais</CardTitle>
+              <CardDescription>Defina os parâmetros básicos da avaliação</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 pt-6">
-              <div className="space-y-2">
-                <Label htmlFor="title" className="text-base font-semibold">
-                  Título da Tarefa *
-                </Label>
-                <Input
-                  id="title"
-                  placeholder="ex: Quiz sobre Doença de Pompe"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                  className="border-2 focus:border-green-500"
-                />
+            <CardContent className="space-y-6 pt-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="title">Título da Avaliação *</Label>
+                  <Input
+                    id="title"
+                    placeholder="Ex: Anatomia Humana - Sistema Nervoso"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    className="bg-background border-input"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="description">Descrição (Opcional)</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Instruções ou contexto para os alunos..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    className="bg-background border-input resize-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="timeLimit">Tempo por Questão (segundos) *</Label>
+                  <Input
+                    id="timeLimit"
+                    type="number"
+                    min="10"
+                    max="600"
+                    value={timeLimit}
+                    onChange={(e) => setTimeLimit(e.target.value)}
+                    required
+                    className="bg-background border-input"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="class">Atribuir à Turma</Label>
+                  <Select value={selectedClass} onValueChange={setSelectedClass}>
+                    <SelectTrigger className="bg-background border-input">
+                      <SelectValue placeholder="Selecione uma turma (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem turma específica (Público)</SelectItem>
+                      {classes.map((classItem) => (
+                        <SelectItem key={classItem.id} value={classItem.id}>
+                          {classItem.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description" className="text-base font-semibold">
-                  Descrição
-                </Label>
-                <Textarea
-                  id="description"
-                  placeholder="Breve descrição sobre o tópico da tarefa"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  className="border-2 focus:border-green-500"
-                />
-              </div>
+              {/* Opções de Configuração */}
+              <div className="grid gap-4 pt-2 border-t border-border">
+                <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-secondary/10">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Revelar Respostas</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Permitir que o aluno veja quais questões acertou e o gabarito após finalizar.
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {revealAnswers ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                    <Checkbox 
+                      id="reveal" 
+                      checked={revealAnswers} 
+                      onCheckedChange={(checked) => setRevealAnswers(!!checked)} 
+                    />
+                  </div>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="timeLimit" className="text-base font-semibold">
-                  Tempo Limite (segundos) *
-                </Label>
-                <Input
-                  id="timeLimit"
-                  type="number"
-                  min="10"
-                  max="600"
-                  value={timeLimit}
-                  onChange={(e) => setTimeLimit(e.target.value)}
-                  required
-                  className="border-2 focus:border-green-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="class" className="text-base font-semibold">
-                  Turma
-                </Label>
-                <Select value={selectedClass} onValueChange={setSelectedClass}>
-                  <SelectTrigger className="border-2 focus:border-green-500">
-                    <SelectValue placeholder="Selecione uma turma (opcional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sem turma específica</SelectItem>
-                    {classes.map((classItem) => (
-                      <SelectItem key={classItem.id} value={classItem.id}>
-                        {classItem.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-gray-600">Se não selecionar, ficará disponível para todos os alunos</p>
-              </div>
-
-              <div className="flex items-center space-x-2 rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
-                <Checkbox id="publish" checked={isPublished} onCheckedChange={(checked) => setIsPublished(!!checked)} />
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="publish"
-                    className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Publicar tarefa imediatamente
-                  </Label>
-                  <p className="text-sm text-gray-600">
-                    Se não marcar, a tarefa será salva como rascunho e você pode publicar depois
-                  </p>
+                <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-secondary/10">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Publicar Imediatamente</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Tornar visível para os alunos assim que salvar.
+                    </p>
+                  </div>
+                  <Checkbox 
+                    id="publish" 
+                    checked={isPublished} 
+                    onCheckedChange={(checked) => setIsPublished(!!checked)} 
+                  />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-green-200 shadow-lg">
-            <CardHeader className="bg-green-50">
-              <CardTitle className="text-green-900">Perguntas</CardTitle>
-              <CardDescription>
-                Use <code className="rounded bg-gray-200 px-1 py-0.5 font-mono">___</code> (três ou mais underscores)
-                para marcar as lacunas. Você pode ter até 5 lacunas por pergunta.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              {questions.map((question, qIndex) => {
-                const blankCount = (question.text.match(/_{3,}/g) || []).length
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Questões</h2>
+              <span className="text-sm text-muted-foreground">{questions.length} questões criadas</span>
+            </div>
 
-                return (
-                  <div key={qIndex} className="space-y-4 rounded-lg border-2 border-green-300 bg-green-50/30 p-6">
+            {questions.map((question, qIndex) => {
+              const blankCount = (question.text.match(/_{3,}/g) || []).length
+
+              return (
+                <Card key={qIndex} className="border border-border bg-card shadow-sm relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+                  <CardHeader className="pb-4 pt-6">
                     <div className="flex items-center justify-between">
-                      <Label className="text-lg font-bold text-green-900">Pergunta {qIndex + 1}</Label>
+                      <CardTitle className="text-base font-medium flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                          {qIndex + 1}
+                        </span>
+                        Questão {qIndex + 1}
+                      </CardTitle>
                       {questions.length > 1 && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => removeQuestion(qIndex)}
-                          className="text-red-600 hover:bg-red-100 hover:text-red-700"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-2"
                         >
-                          <X className="h-4 w-4 mr-1" />
-                          Remover
+                          <X className="h-4 w-4 mr-2" /> Remover
                         </Button>
                       )}
                     </div>
-
+                  </CardHeader>
+                  <CardContent className="space-y-6">
                     <div className="space-y-2">
-                      <Label htmlFor={`question-text-${qIndex}`} className="font-semibold">
-                        Texto da Pergunta *
-                      </Label>
+                      <Label>Enunciado (Use ___ para criar lacunas)</Label>
                       <Textarea
-                        id={`question-text-${qIndex}`}
-                        placeholder="ex: A doença de Pompe é caracterizada pelo acúmulo de ___ afetando a manutenção da ___ celular."
+                        placeholder="Ex: A capital do Brasil é ___."
                         value={question.text}
                         onChange={(e) => updateQuestionText(qIndex, e.target.value)}
-                        rows={3}
-                        required
-                        className="border-2 focus:border-green-500"
+                        rows={2}
+                        className="bg-background font-medium text-lg"
                       />
                       {blankCount > 0 && (
-                        <p className="text-sm text-green-700 font-medium">
-                          {blankCount} lacuna{blankCount !== 1 ? "s" : ""} detectada{blankCount !== 1 ? "s" : ""}
+                        <p className="text-xs text-primary font-medium flex items-center gap-1">
+                          <Plus className="h-3 w-3" /> {blankCount} lacuna(s) detectada(s)
                         </p>
-                      )}
-                      {blankCount > 5 && (
-                        <p className="text-sm text-red-600 font-medium">Máximo de 5 lacunas por pergunta!</p>
                       )}
                     </div>
 
                     {question.correctAnswers.length > 0 && (
-                      <div className="space-y-3">
-                        <Label className="font-semibold text-green-900">Respostas Corretas *</Label>
-                        <div className="space-y-2">
-                          {question.correctAnswers.map((answer, aIndex) => (
-                            <div key={aIndex} className="space-y-1">
-                              <Label htmlFor={`answer-${qIndex}-${aIndex}`} className="text-sm">
-                                Resposta Correta {aIndex + 1}
-                              </Label>
-                              <Input
-                                id={`answer-${qIndex}-${aIndex}`}
-                                placeholder={`Palavra ${aIndex + 1}`}
-                                value={answer}
-                                onChange={(e) => updateCorrectAnswer(qIndex, aIndex, e.target.value)}
-                                required
-                                className="border-2 border-green-200 focus:border-green-500 bg-white"
-                              />
-                            </div>
-                          ))}
-                        </div>
+                      <div className="grid gap-4 sm:grid-cols-2 bg-secondary/10 p-4 rounded-lg border border-border">
+                        {question.correctAnswers.map((answer, aIndex) => (
+                          <div key={aIndex} className="space-y-1.5">
+                            <Label className="text-xs text-primary font-bold uppercase tracking-wider">
+                              Resposta Correta {aIndex + 1}
+                            </Label>
+                            <Input
+                              placeholder={`Resposta para a lacuna ${aIndex + 1}`}
+                              value={answer}
+                              onChange={(e) => updateCorrectAnswer(qIndex, aIndex, e.target.value)}
+                              className="bg-background border-primary/30 focus:border-primary"
+                            />
+                          </div>
+                        ))}
                       </div>
                     )}
 
                     <div className="space-y-3">
-                      <Label className="font-semibold text-green-900">Palavras de Distração (desta pergunta)</Label>
-                      <p className="text-sm text-gray-600">Adicione palavras incorretas para aumentar o desafio</p>
-                      <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
+                        Distratores (Palavras Incorretas)
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
                         {question.distractors.map((distractor, dIndex) => (
-                          <div key={dIndex} className="flex gap-2">
+                          <div key={dIndex} className="flex-1 min-w-[200px] flex gap-2">
                             <Input
-                              placeholder={`Palavra de distração ${dIndex + 1}`}
+                              placeholder="Palavra incorreta"
                               value={distractor}
                               onChange={(e) => updateDistractor(qIndex, dIndex, e.target.value)}
-                              className="border-2 border-orange-200 focus:border-orange-500 bg-white"
+                              className="bg-background"
                             />
                             {question.distractors.length > 1 && (
                               <Button
@@ -381,7 +374,7 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => removeDistractor(qIndex, dIndex)}
-                                className="text-red-600 hover:bg-red-100"
+                                className="shrink-0 text-muted-foreground hover:text-destructive"
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -392,52 +385,42 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
                           type="button"
                           variant="outline"
                           onClick={() => addDistractor(qIndex)}
-                          className="w-full border-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+                          className="shrink-0 border-dashed"
                         >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Adicionar Palavra de Distração
+                          <Plus className="h-4 w-4 mr-2" /> Add Distrator
                         </Button>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
+                  </CardContent>
+                </Card>
+              )
+            })}
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addQuestion}
-                className="w-full border-2 border-green-500 bg-green-50 text-green-700 hover:bg-green-100 font-semibold h-12"
-              >
-                <Plus className="mr-2 h-5 w-5" />
-                Adicionar Nova Pergunta
-              </Button>
-            </CardContent>
-          </Card>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addQuestion}
+              className="w-full py-8 border-dashed border-2 hover:border-primary hover:bg-primary/5 hover:text-primary transition-all"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Adicionar Nova Pergunta
+            </Button>
+          </div>
 
           {error && (
-            <Alert variant="destructive" className="border-2 border-red-500">
-              <AlertDescription className="font-semibold">{error}</AlertDescription>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex gap-4 pt-4 border-t border-border">
             <Link href="/teacher" className="flex-1">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full border-2 border-gray-400 hover:bg-gray-100 font-semibold h-12 bg-transparent"
-                disabled={isLoading}
-              >
+              <Button type="button" variant="outline" className="w-full h-12 text-base" disabled={isLoading}>
                 Cancelar
               </Button>
             </Link>
-            <Button
-              type="submit"
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold h-12 text-base shadow-lg"
-              disabled={isLoading}
-            >
-              {isLoading ? "Criando..." : "Criar Tarefa"}
+            <Button type="submit" className="flex-1 h-12 text-base font-bold shadow-lg shadow-primary/20" disabled={isLoading}>
+              {isLoading ? "Criando..." : "Criar Avaliação"}
             </Button>
           </div>
         </form>

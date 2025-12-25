@@ -2,123 +2,117 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect, notFound } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Trophy, Check, X, Clock, ArrowLeft } from "lucide-react"
+import { Trophy, Check, X, Clock, ArrowLeft, Lock, HelpCircle } from "lucide-react"
 import Link from "next/link"
-import type { GameAttempt } from "@/lib/types"
+import type { GameAttempt, Game } from "@/lib/types"
 
 export default async function StudentResultPage({ params }: { params: Promise<{ attemptId: string }> }) {
   const { attemptId } = await params
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login?role=student")
 
-  if (!user) {
-    redirect("/auth/login?role=student")
-  }
-
-  // Fetch attempt data
   const { data: attempt, error } = await supabase
     .from("game_attempts")
-    .select(
-      `
-      *,
-      games(title)
-    `,
-    )
+    .select(`*, games(*)`) // Fetch full game data including reveal_answers
     .eq("id", attemptId)
     .eq("student_id", user.id)
     .single()
 
-  if (error || !attempt) {
-    notFound()
-  }
+  if (error || !attempt) notFound()
 
-  const typedAttempt = attempt as GameAttempt & { games: { title: string } }
+  const typedAttempt = attempt as GameAttempt & { games: Game }
+  const game = typedAttempt.games
   const percentage = Math.round((typedAttempt.score / typedAttempt.total_questions) * 100)
+  const reveal = game.reveal_answers ?? true // Default true se null
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b bg-white">
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-4xl items-center gap-4 px-6 py-4">
           <Link href="/student">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="hover:bg-secondary">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Game Results</h1>
-            <p className="text-sm text-gray-600">{typedAttempt.games.title}</p>
+            <h1 className="text-xl font-bold">Resultado da Avaliação</h1>
+            <p className="text-sm text-muted-foreground">{game.title}</p>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-8">
-        <Card className="mb-6">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600">
-              <Trophy className="h-10 w-10 text-white" />
+      <main className="mx-auto max-w-4xl px-6 py-10">
+        <Card className="mb-8 border-border bg-gradient-to-b from-secondary/30 to-card">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20">
+              <Trophy className="h-10 w-10 text-primary" />
             </div>
-            <CardTitle className="text-3xl">
-              {percentage >= 80 ? "Excellent Work!" : percentage >= 60 ? "Good Job!" : "Keep Practicing!"}
+            <CardTitle className="text-3xl font-bold">
+              Avaliação Concluída
             </CardTitle>
             <CardDescription className="text-lg">
-              You scored {typedAttempt.score} out of {typedAttempt.total_questions} ({percentage}%)
+              Você acertou <span className="text-foreground font-bold">{typedAttempt.score}</span> de <span className="text-foreground font-bold">{typedAttempt.total_questions}</span> questões ({percentage}%)
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex justify-center gap-8 text-center">
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{typedAttempt.score}</p>
-                <p className="text-sm text-gray-600">Correct</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{typedAttempt.total_questions - typedAttempt.score}</p>
-                <p className="text-sm text-gray-600">Incorrect</p>
-              </div>
-              <div>
-                <Clock className="mx-auto mb-1 h-6 w-6 text-gray-600" />
-                <p className="text-2xl font-bold text-gray-900">{typedAttempt.time_taken}s</p>
-                <p className="text-sm text-gray-600">Time</p>
-              </div>
-            </div>
-          </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Answer Review</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {typedAttempt.answers.map((answer, index) => (
-              <div key={index} className="rounded border bg-white p-4">
-                <div className="mb-2 flex items-start justify-between">
-                  <p className="flex-1 font-medium">Question {index + 1}</p>
-                  {answer.is_correct ? (
-                    <Check className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <X className="h-5 w-5 text-red-600" />
-                  )}
-                </div>
-                <div className="text-sm">
-                  <p className={answer.is_correct ? "text-green-700" : "text-red-700"}>
-                    Your answer: <span className="font-semibold">{answer.user_answer || "(No answer)"}</span>
-                  </p>
-                  {!answer.is_correct && (
-                    <p className="text-green-700">
-                      Correct answer: <span className="font-semibold">{answer.correct_answer}</span>
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        {!reveal && (
+          <div className="mb-8 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-200 flex items-center gap-3">
+            <Lock className="h-5 w-5" />
+            <p className="text-sm">O professor configurou esta avaliação para não exibir o gabarito completo após a conclusão.</p>
+          </div>
+        )}
 
-        <div className="mt-6">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <HelpCircle className="h-5 w-5 text-primary" /> Suas Respostas
+        </h3>
+
+        <div className="space-y-4">
+          {typedAttempt.answers.map((answer, index) => (
+            <Card key={index} className="border-border bg-card">
+              <CardContent className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                    reveal 
+                      ? (answer.is_correct ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500")
+                      : "bg-secondary border-border text-muted-foreground"
+                  }`}>
+                    {reveal 
+                      ? (answer.is_correct ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />)
+                      : <span className="text-xs font-bold">{index + 1}</span>
+                    }
+                  </div>
+                  
+                  <div className="flex-1 space-y-2">
+                    <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Questão {index + 1}</p>
+                    
+                    <div className="p-3 bg-secondary/30 rounded-md border border-white/5">
+                      <span className="text-xs text-muted-foreground block mb-1">Sua resposta:</span>
+                      <p className={`font-medium ${reveal ? (answer.is_correct ? "text-green-400" : "text-red-400") : "text-foreground"}`}>
+                        {answer.user_answers && answer.user_answers.length > 0 ? answer.user_answers.join(" / ") : "(Em branco)"}
+                      </p>
+                    </div>
+
+                    {reveal && !answer.is_correct && (
+                      <div className="p-3 bg-green-500/5 rounded-md border border-green-500/10">
+                        <span className="text-xs text-green-500/70 block mb-1">Gabarito:</span>
+                        <p className="font-medium text-green-400">
+                          {answer.correct_answers.join(" / ")}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="mt-8">
           <Link href="/student">
-            <Button className="w-full">Back to Dashboard</Button>
+            <Button className="w-full font-bold h-12 text-lg">Voltar ao Painel</Button>
           </Link>
         </div>
       </main>
