@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Clock, Check, X, Trophy } from "lucide-react"
+import { Clock, CheckCircle2, XCircle, Trophy, Sparkles, ArrowRight, RotateCcw } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Game, GameQuestion } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import confetti from "canvas-confetti" // Sugestão: instalar 'canvas-confetti' para efeito visual
 
 interface GamePlayInterfaceProps {
   game: Game
@@ -18,216 +19,191 @@ interface GamePlayInterfaceProps {
 
 interface Answer {
   questionId: string
-  userAnswers: string[] // Array de respostas do usuário
-  correctAnswers: string[] // Array de respostas corretas
+  userAnswers: string[]
+  correctAnswers: string[]
   isCorrect: boolean
 }
 
 export function GamePlayInterface({ game, questions, studentId }: GamePlayInterfaceProps) {
   const router = useRouter()
+  // Estado inicial
   const [timeLeft, setTimeLeft] = useState(game.time_limit)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string[]>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [results, setResults] = useState<Answer[]>([])
+  
+  // Controle de palavras usadas na questão atual
   const [usedWords, setUsedWords] = useState<Set<string>>(new Set())
-
-  const currentQuestion = questions[currentQuestionIndex]
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100
-
-  const blanksCount = (currentQuestion.question_text.match(/___/g) || []).length
-  const currentAnswers = answers[currentQuestion.id] || []
-
-  const currentQuestionWords = [...(currentQuestion.correct_answers || []), ...(currentQuestion.distractors || [])]
-
   const [shuffledWords, setShuffledWords] = useState<string[]>([])
 
+  const currentQuestion = questions[currentQuestionIndex]
+  const progress = ((currentQuestionIndex) / questions.length) * 100
+
+  // Regex para identificar lacunas (3 ou mais underlines)
+  // Isso evita bugs se o professor digitar "____" em vez de "___"
+  const parts = currentQuestion.question_text.split(/_{3,}/g)
+  const blanksCount = parts.length - 1
+  
+  const currentAnswers = answers[currentQuestion.id] || []
+
+  // Inicializa palavras da questão
   useEffect(() => {
-    // Embaralha as palavras sempre que a pergunta atual mudar
-    setShuffledWords([...currentQuestionWords].sort(() => Math.random() - 0.5))
-  }, [currentQuestionIndex])
+    const words = [...(currentQuestion.correct_answers || []), ...(currentQuestion.distractors || [])]
+    setShuffledWords(words.sort(() => Math.random() - 0.5))
+    // Resetar palavras usadas ao mudar de questão, mas manter respostas se o aluno voltar
+    const savedAnswers = answers[currentQuestion.id] || []
+    setUsedWords(new Set(savedAnswers))
+  }, [currentQuestionIndex, currentQuestion])
 
   // Timer
   useEffect(() => {
-    if (timeLeft <= 0 || showResults) return
+    if (timeLeft <= 0 && !showResults) {
+      handleSubmitGame()
+      return
+    }
+    if (showResults) return
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          handleSubmitGame()
-          return 0
-        }
-        return prev - 1
-      })
+      setTimeLeft((prev) => prev - 1)
     }, 1000)
-
     return () => clearInterval(timer)
   }, [timeLeft, showResults])
-
-  useEffect(() => {
-    setUsedWords(new Set(currentAnswers))
-  }, [currentQuestionIndex])
 
   const handleWordClick = (word: string) => {
     const currentQuestionAnswers = answers[currentQuestion.id] || []
 
-    // Se a palavra já foi usada nesta pergunta, remove
-    if (currentQuestionAnswers.includes(word)) {
-      setAnswers((prev) => ({
-        ...prev,
-        [currentQuestion.id]: currentQuestionAnswers.filter((w) => w !== word),
-      }))
+    // Lógica de Toggle: Se já usou, remove. Se não, adiciona.
+    if (usedWords.has(word)) {
+      // Remove a palavra (mesmo que esteja no meio das respostas)
+      const newAnswers = currentQuestionAnswers.filter((w) => w !== word)
+      setAnswers((prev) => ({ ...prev, [currentQuestion.id]: newAnswers }))
       setUsedWords((prev) => {
-        const updated = new Set(prev)
-        updated.delete(word)
-        return updated
+        const next = new Set(prev)
+        next.delete(word)
+        return next
       })
-    } else if (currentQuestionAnswers.length < blanksCount) {
-      // Adiciona palavra na próxima lacuna disponível
-      setAnswers((prev) => ({
-        ...prev,
-        [currentQuestion.id]: [...currentQuestionAnswers, word],
-      }))
-      setUsedWords((prev) => new Set(prev).add(word))
+    } else {
+      // Só adiciona se houver espaço
+      if (currentQuestionAnswers.length < blanksCount) {
+        // Preenche a primeira lacuna vazia (adiciona ao final do array de respostas)
+        setAnswers((prev) => ({
+          ...prev,
+          [currentQuestion.id]: [...currentQuestionAnswers, word],
+        }))
+        setUsedWords((prev) => new Set(prev).add(word))
+      }
     }
+  }
+
+  // Remove uma palavra específica clicando na lacuna preenchida
+  const handleGapClick = (index: number) => {
+    const currentQuestionAnswers = answers[currentQuestion.id] || []
+    if (!currentQuestionAnswers[index]) return
+
+    const wordToRemove = currentQuestionAnswers[index]
+    const newAnswers = [...currentQuestionAnswers]
+    newAnswers.splice(index, 1) // Remove do array mantendo a ordem dos restantes
+
+    setAnswers((prev) => ({ ...prev, [currentQuestion.id]: newAnswers }))
+    setUsedWords((prev) => {
+      const next = new Set(prev)
+      next.delete(wordToRemove)
+      return next
+    })
   }
 
   const handleNext = () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1)
-    }
-  }
-
-  const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex((prev) => prev - 1)
+    } else {
+      handleSubmitGame()
     }
   }
 
   const handleSubmitGame = useCallback(async () => {
-    if (isSubmitting) return
+    if (isSubmitting || showResults) return
     setIsSubmitting(true)
 
     const timeTaken = game.time_limit - timeLeft
-
     const calculatedResults: Answer[] = questions.map((q) => {
       const userAnswers = answers[q.id] || []
       const correctAnswers = q.correct_answers || []
-
-      // Verifica se todas as respostas estão corretas (ordem e conteúdo)
+      
+      // Validação insensível a maiúsculas/minúsculas e espaços
       const isCorrect =
         userAnswers.length === correctAnswers.length &&
-        userAnswers.every((ans, idx) => ans.toLowerCase().trim() === correctAnswers[idx]?.toLowerCase().trim())
+        userAnswers.every((ans, idx) => 
+          ans.toLowerCase().trim() === correctAnswers[idx]?.toLowerCase().trim()
+        )
 
-      return {
-        questionId: q.id,
-        userAnswers,
-        correctAnswers,
-        isCorrect,
-      }
+      return { questionId: q.id, userAnswers, correctAnswers, isCorrect }
     })
 
     const score = calculatedResults.filter((r) => r.isCorrect).length
-
     setResults(calculatedResults)
     setShowResults(true)
-
-    // Save to database
-    const supabase = createClient()
-    try {
-      await supabase.from("game_attempts").insert({
-        game_id: game.id,
-        student_id: studentId,
-        score,
-        total_questions: questions.length,
-        time_taken: timeTaken,
-        answers: calculatedResults,
-        can_retry: true, // Alterado para true para permitir sempre novas tentativas
-      })
-      console.log("[v0] Tentativa de jogo salva com sucesso")
-    } catch (error) {
-      console.error("[v0] Erro ao salvar tentativa de jogo:", error)
+    
+    // Efeito de confete se pontuação for boa (> 50%)
+    if (score / questions.length > 0.5) {
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } })
     }
-  }, [answers, game, questions, studentId, timeLeft, isSubmitting])
+
+    const supabase = createClient()
+    await supabase.from("game_attempts").insert({
+      game_id: game.id,
+      student_id: studentId,
+      score,
+      total_questions: questions.length,
+      time_taken: timeTaken,
+      answers: calculatedResults,
+      can_retry: true,
+    })
+    setIsSubmitting(false)
+  }, [answers, game, questions, studentId, timeLeft, isSubmitting, showResults])
 
   if (showResults) {
     const score = results.filter((r) => r.isCorrect).length
     const percentage = Math.round((score / questions.length) * 100)
 
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-emerald-100 p-6">
-        <Card className="w-full max-w-3xl border-4 border-emerald-600 shadow-2xl">
-          <CardHeader className="text-center bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-t-lg">
-            <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-yellow-400 shadow-lg">
-              <Trophy className="h-14 w-14 text-yellow-900" />
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F9F0] p-4">
+        <Card className="w-full max-w-2xl border-none shadow-2xl overflow-hidden">
+          <div className={`h-2 w-full ${percentage >= 70 ? 'bg-green-500' : 'bg-orange-500'}`} />
+          <CardHeader className="text-center pt-8 pb-2">
+            <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-yellow-100 ring-4 ring-white shadow-lg">
+              <Trophy className="h-12 w-12 text-yellow-600" />
             </div>
-            <CardTitle className="text-4xl font-black">Jogo Concluído!</CardTitle>
-            <CardDescription className="text-xl text-emerald-50 font-semibold">
-              Você acertou {score} de {questions.length} perguntas ({percentage}%)
-            </CardDescription>
+            <CardTitle className="text-3xl font-black text-gray-800">
+              {percentage >= 70 ? "Mandou bem!" : "Bom esforço!"}
+            </CardTitle>
+            <p className="text-lg text-gray-500 font-medium mt-1">
+              Você acertou <span className="text-primary font-bold">{score}</span> de {questions.length}
+            </p>
           </CardHeader>
-          <CardContent className="space-y-6 p-6">
-            <div className="rounded-xl bg-emerald-50 border-2 border-emerald-200 p-6">
-              <h3 className="mb-4 text-xl font-bold text-emerald-900">Suas Respostas:</h3>
-              <div className="space-y-4">
-                {questions.map((question, index) => {
-                  const result = results.find((r) => r.questionId === question.id)
-                  const isCorrect = result?.isCorrect
-
-                  return (
-                    <div
-                      key={question.id}
-                      className={cn(
-                        "rounded-lg border-2 p-4 shadow-md",
-                        isCorrect ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50",
-                      )}
-                    >
-                      <div className="mb-3 flex items-start justify-between gap-3">
-                        <p className="flex-1 text-base font-semibold text-gray-900">
-                          {index + 1}. {question.question_text}
-                        </p>
-                        <div
-                          className={cn(
-                            "flex h-8 w-8 items-center justify-center rounded-full",
-                            isCorrect ? "bg-green-600" : "bg-red-600",
-                          )}
-                        >
-                          {isCorrect ? <Check className="h-5 w-5 text-white" /> : <X className="h-5 w-5 text-white" />}
-                        </div>
-                      </div>
-                      <div className="space-y-2 text-sm">
-                        <div
-                          className={cn(
-                            "rounded-md p-3 font-semibold",
-                            isCorrect ? "bg-green-100 text-green-900" : "bg-red-100 text-red-900",
-                          )}
-                        >
-                          <span className="font-bold">Sua resposta: </span>
-                          {result?.userAnswers && result.userAnswers.length > 0
-                            ? result.userAnswers.join(", ")
-                            : "(Sem resposta)"}
-                        </div>
-                        {!isCorrect && result?.correctAnswers && (
-                          <div className="rounded-md bg-green-100 p-3 text-green-900 font-semibold">
-                            <span className="font-bold">Resposta correta: </span>
-                            {result.correctAnswers.join(", ")}
-                          </div>
-                        )}
-                      </div>
+          <CardContent className="p-6">
+            <div className="space-y-3 mb-8 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+              {questions.map((q, idx) => {
+                const res = results.find(r => r.questionId === q.id)
+                return (
+                  <div key={q.id} className="flex items-center gap-3 rounded-xl border p-3 bg-white shadow-sm">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${res?.isCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                      {res?.isCorrect ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
                     </div>
-                  )
-                })}
-              </div>
+                    <div className="flex-1 text-sm font-medium text-gray-700 truncate">
+                      Questão {idx + 1}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-
-            <div className="flex gap-4">
-              <Button
-                onClick={() => router.push("/student")}
-                variant="outline"
-                className="flex-1 h-14 text-lg font-bold border-2 border-gray-900 hover:bg-gray-100"
-              >
-                Voltar ao Dashboard
+            <div className="grid gap-3">
+              <Button onClick={() => window.location.reload()} variant="outline" size="lg" className="w-full font-bold border-2">
+                <RotateCcw className="mr-2 h-4 w-4" /> Tentar Novamente
+              </Button>
+              <Button onClick={() => router.push("/student")} size="lg" className="w-full font-bold shadow-md hover:shadow-lg transition-all">
+                Voltar ao Menu
               </Button>
             </div>
           </CardContent>
@@ -237,121 +213,101 @@ export function GamePlayInterface({ game, questions, studentId }: GamePlayInterf
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100 p-6">
-      <div className="mx-auto max-w-5xl">
-        {/* Header com Timer */}
-        <div className="mb-8 flex items-center justify-between rounded-2xl bg-white border-4 border-emerald-600 p-6 shadow-xl">
-          <div>
-            <h1 className="text-3xl font-black text-emerald-900">{game.title}</h1>
-            <p className="text-lg font-semibold text-emerald-700">
-              Pergunta {currentQuestionIndex + 1} de {questions.length}
-            </p>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 px-6 py-3 shadow-lg">
-            <Clock className={cn("h-7 w-7", timeLeft <= 10 ? "text-red-300 animate-pulse" : "text-white")} />
-            <span className={cn("text-2xl font-black", timeLeft <= 10 ? "text-red-100" : "text-white")}>
+    <div className="min-h-screen bg-[#F7F9F0] flex flex-col">
+      {/* Barra Superior */}
+      <div className="bg-white border-b sticky top-0 z-10 px-4 py-3 shadow-sm">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-mono font-bold text-sm ${timeLeft < 10 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-gray-100 text-gray-700'}`}>
+              <Clock className="h-4 w-4" />
               {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}
-            </span>
+            </div>
+          </div>
+          <div className="flex-1 mx-4 max-w-xs hidden sm:block">
+            <div className="flex justify-between text-xs text-gray-500 mb-1 font-semibold">
+              <span>Progresso</span>
+              <span>{Math.round(progress)}%</span>
+            </div>
+            <Progress value={progress} className="h-2.5" />
+          </div>
+          <div className="text-sm font-bold text-primary">
+            {currentQuestionIndex + 1} <span className="text-gray-400">/ {questions.length}</span>
           </div>
         </div>
+      </div>
 
-        <Progress value={progress} className="mb-8 h-4 border-2 border-emerald-600" />
-
-        {/* Pergunta */}
-        <Card className="mb-8 border-4 border-emerald-600 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-t-lg">
-            <CardTitle className="text-2xl font-black">Complete a frase</CardTitle>
-            <CardDescription className="text-emerald-50 text-base font-semibold">
-              Clique nas palavras do banco para preencher as lacunas ({currentAnswers.length}/{blanksCount} preenchidas)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-8">
-            <div className="rounded-xl bg-emerald-50 border-2 border-emerald-200 p-8">
-              <p className="text-balance text-xl leading-relaxed font-medium text-gray-900">
-                {currentQuestion.question_text.split("___").map((part, index) => (
-                  <span key={index}>
-                    {part}
-                    {index < blanksCount && (
-                      <span
-                        className={cn(
-                          "mx-2 inline-block min-w-40 rounded-lg border-4 px-6 py-3 text-center font-bold shadow-md",
-                          currentAnswers[index]
-                            ? "border-emerald-600 bg-emerald-100 text-emerald-900"
-                            : "border-gray-400 border-dashed bg-white text-gray-400",
-                        )}
-                      >
-                        {currentAnswers[index] || `Lacuna ${index + 1}`}
-                      </span>
-                    )}
-                  </span>
-                ))}
-              </p>
-            </div>
+      <div className="flex-1 p-4 sm:p-6 max-w-4xl mx-auto w-full flex flex-col gap-6">
+        
+        {/* Área da Pergunta (Frase) */}
+        <Card className="border-none shadow-md overflow-hidden ring-1 ring-black/5 bg-white">
+          <div className="h-2 w-full bg-primary/20">
+            <div className="h-full bg-primary transition-all duration-300" style={{ width: `${((answers[currentQuestion.id]?.length || 0) / blanksCount) * 100}%` }} />
+          </div>
+          <CardContent className="p-6 sm:p-10">
+            <h2 className="text-2xl sm:text-3xl leading-relaxed font-medium text-gray-800 text-center font-serif">
+              {parts.map((part, index) => (
+                <span key={index}>
+                  {part}
+                  {index < blanksCount && (
+                    <button
+                      onClick={() => handleGapClick(index)}
+                      className={cn(
+                        "inline-flex items-center justify-center min-w-[80px] h-[1.8em] mx-1.5 px-3 align-middle rounded-lg border-2 border-b-4 text-base font-bold transition-all transform active:scale-95",
+                        currentAnswers[index]
+                          ? "bg-primary/10 border-primary text-primary hover:bg-red-50 hover:border-red-200 hover:text-red-500" 
+                          : "bg-gray-50 border-gray-200 border-dashed text-transparent animate-pulse"
+                      )}
+                    >
+                      {currentAnswers[index] || "?"}
+                    </button>
+                  )}
+                </span>
+              ))}
+            </h2>
           </CardContent>
         </Card>
 
         {/* Banco de Palavras */}
-        <Card className="mb-8 border-4 border-emerald-600 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-t-lg">
-            <CardTitle className="text-2xl font-black">Banco de Palavras</CardTitle>
-            <CardDescription className="text-emerald-50 text-base font-semibold">
-              Clique em uma palavra para selecioná-la como resposta (específico para esta pergunta)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-8">
-            <div className="flex flex-wrap gap-4">
-              {shuffledWords.map((word, index) => {
-                const isUsed = usedWords.has(word)
-                const isCurrentAnswer = currentAnswers.includes(word)
+        <div className="flex-1">
+          <p className="text-center text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wider">
+            Escolha a palavra correta
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {shuffledWords.map((word, idx) => {
+              const isUsed = usedWords.has(word)
+              return (
+                <button
+                  key={`${word}-${idx}`}
+                  onClick={() => handleWordClick(word)}
+                  disabled={isUsed && !currentAnswers.includes(word)}
+                  className={cn(
+                    "px-6 py-3 rounded-xl font-bold text-lg shadow-sm border-2 border-b-4 transition-all duration-200 active:scale-95 hover:-translate-y-0.5",
+                    isUsed 
+                      ? "bg-gray-100 text-gray-300 border-gray-200 cursor-default shadow-none translate-y-1 border-b-2" 
+                      : "bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary"
+                  )}
+                >
+                  {word}
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
-                return (
-                  <Button
-                    key={`${word}-${index}`}
-                    type="button"
-                    variant={isCurrentAnswer ? "default" : "outline"}
-                    className={cn(
-                      "transition-all text-lg font-bold px-6 py-6 rounded-lg border-2 shadow-md",
-                      isCurrentAnswer && "bg-emerald-600 text-white border-emerald-700 scale-105",
-                      isUsed && !isCurrentAnswer && "opacity-30 cursor-not-allowed",
-                      !isUsed && "bg-white border-gray-900 hover:scale-110 hover:bg-emerald-50",
-                    )}
-                    onClick={() => handleWordClick(word)}
-                    disabled={isUsed && !isCurrentAnswer}
-                  >
-                    {word}
-                  </Button>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Navegação */}
-        <div className="flex gap-4">
-          <Button
-            onClick={handlePrevious}
-            disabled={currentQuestionIndex === 0}
-            variant="outline"
-            className="h-16 text-lg font-bold border-4 border-gray-900 hover:bg-gray-100 disabled:opacity-30 bg-transparent"
+        {/* Botão Próximo */}
+        <div className="mt-auto pt-6">
+          <Button 
+            onClick={handleNext} 
+            size="lg" 
+            className="w-full h-14 text-xl font-black shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all rounded-2xl"
+            disabled={currentAnswers.length < blanksCount} // Obriga a preencher tudo para avançar? Opcional.
           >
-            ← Anterior
+            {currentQuestionIndex === questions.length - 1 ? (
+              isSubmitting ? "Finalizando..." : "Concluir Jogo"
+            ) : (
+              <>Próxima <ArrowRight className="ml-2" /></>
+            )}
           </Button>
-          {currentQuestionIndex === questions.length - 1 ? (
-            <Button
-              onClick={handleSubmitGame}
-              disabled={isSubmitting}
-              className="flex-1 h-16 text-xl font-black bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 shadow-lg"
-            >
-              {isSubmitting ? "Enviando..." : "Finalizar Jogo"}
-            </Button>
-          ) : (
-            <Button
-              onClick={handleNext}
-              className="flex-1 h-16 text-xl font-black bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 shadow-lg"
-            >
-              Próxima →
-            </Button>
-          )}
         </div>
       </div>
     </div>

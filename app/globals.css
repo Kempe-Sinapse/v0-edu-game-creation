@@ -1,122 +1,96 @@
+/* app/globals.css */
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Cores ajustadas para melhor contraste em fundo escuro */
-  --background: 220 13% 9%;
-  --foreground: 210 20% 98%;
-  --card: 220 13% 12%;
-  --card-foreground: 210 20% 98%;
-  --popover: 220 13% 12%;
-  --popover-foreground: 210 20% 98%;
-  --primary: 142 76% 45%;
-  --primary-foreground: 220 13% 9%;
-  --secondary: 220 13% 18%;
-  --secondary-foreground: 210 20% 98%;
-  --muted: 220 13% 18%;
-  --muted-foreground: 215 20% 75%;
-  --accent: 142 76% 45%;
-  --accent-foreground: 220 13% 9%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 210 20% 98%;
-  --success: 142 76% 45%;
-  --success-foreground: 220 13% 9%;
-  --border: 220 13% 18%;
-  --input: 220 13% 18%;
-  --ring: 142 76% 45%;
-  --radius: 0.75rem;
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Paleta Creme e Verde - EduGame */
+  
+  /* Fundo Creme #F7F9F0 -> HSL(80, 29%, 96%) */
+  --background: 80 29% 96%;
+  
+  /* Texto Escuro (Verde Floresta Quase Preto) para leitura confortável */
+  --foreground: 145 30% 15%;
+
+  /* Cartões Brancos com leve tom quente */
+  --card: 0 0% 100%;
+  --card-foreground: 145 30% 15%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 145 30% 15%;
+
+  /* Verde Principal #4CAF50 -> HSL(122, 39%, 49%) */
+  --primary: 122 39% 49%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Verde Secundário (mais suave para fundos de destaque) */
+  --secondary: 122 39% 90%;
+  --secondary-foreground: 122 39% 30%;
+
+  --muted: 80 10% 90%;
+  --muted-foreground: 145 10% 40%;
+
+  --accent: 35 90% 60%; /* Um laranja suave para destaque/gamificação */
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 122 20% 85%;
+  --input: 122 20% 85%;
+  --ring: 122 39% 49%;
+
+  --radius: 1rem; /* Bordas mais arredondadas para ficar amigável */
 }
 
 .dark {
-  --background: 220 13% 9%;
-  --foreground: 210 20% 98%;
-  --card: 220 13% 12%;
-  --card-foreground: 210 20% 98%;
-  --popover: 220 13% 12%;
-  --popover-foreground: 210 20% 98%;
-  --primary: 142 76% 45%;
-  --primary-foreground: 220 13% 9%;
-  --secondary: 220 13% 18%;
-  --secondary-foreground: 210 20% 98%;
-  --muted: 220 13% 18%;
-  --muted-foreground: 215 20% 75%;
-  --accent: 142 76% 45%;
-  --accent-foreground: 220 13% 9%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 210 20% 98%;
-  --success: 142 76% 45%;
-  --success-foreground: 220 13% 9%;
-  --border: 220 13% 18%;
-  --input: 220 13% 18%;
-  --ring: 142 76% 45%;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  /* Modo escuro adaptado (opcional, mas bom ter) */
+  --background: 145 30% 10%;
+  --foreground: 80 29% 96%;
+  --card: 145 30% 13%;
+  --card-foreground: 80 29% 96%;
+  --popover: 145 30% 13%;
+  --popover-foreground: 80 29% 96%;
+  --primary: 122 39% 49%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 145 30% 20%;
+  --secondary-foreground: 80 29% 96%;
+  --muted: 145 30% 20%;
+  --muted-foreground: 145 10% 70%;
+  --accent: 35 90% 60%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 145 30% 20%;
+  --input: 145 30% 20%;
+  --ring: 122 39% 49%;
 }
 
 @theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 @layer base {
