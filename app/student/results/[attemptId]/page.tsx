@@ -25,6 +25,8 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
   const typedAttempt = attempt as GameAttempt & { games: Game }
   const game = typedAttempt.games
   const percentage = Math.round((typedAttempt.score / typedAttempt.total_questions) * 100)
+  
+  // Verifica se o professor permitiu revelar as respostas
   const reveal = game.reveal_answers ?? true
 
   return (
@@ -52,8 +54,16 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
             <CardTitle className="text-3xl font-bold">
               Avaliação Concluída
             </CardTitle>
+            
+            {/* Lógica condicional para o texto da pontuação */}
             <CardDescription className="text-lg">
-              Você acertou <span className="text-foreground font-bold">{typedAttempt.score}</span> de <span className="text-foreground font-bold">{typedAttempt.total_questions}</span> questões ({percentage}%)
+              {reveal ? (
+                <>
+                  Você acertou <span className="text-foreground font-bold">{typedAttempt.score}</span> de <span className="text-foreground font-bold">{typedAttempt.total_questions}</span> questões ({percentage}%)
+                </>
+              ) : (
+                "Suas respostas foram enviadas com sucesso para o professor."
+              )}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -61,7 +71,7 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
         {!reveal && (
           <div className="mb-8 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-200 flex items-center gap-3">
             <Lock className="h-5 w-5" />
-            <p className="text-sm">O professor configurou esta avaliação para não exibir o gabarito completo após a conclusão.</p>
+            <p className="text-sm">O professor configurou esta avaliação para não exibir o gabarito completo e a nota após a conclusão.</p>
           </div>
         )}
 
@@ -80,6 +90,7 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
               <Card key={index} className="border-border bg-card">
                 <CardContent className="p-5">
                   <div className="flex items-start gap-4">
+                    {/* Ícone da Questão: Se reveal for false, mostra apenas o número */}
                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
                       reveal 
                         ? (isCorrect ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-red-500/10 border-red-500/20 text-red-500")
@@ -96,11 +107,13 @@ export default async function StudentResultPage({ params }: { params: Promise<{ 
                       
                       <div className="p-3 bg-secondary/30 rounded-md border border-white/5">
                         <span className="text-xs text-muted-foreground block mb-1">Sua resposta:</span>
+                        {/* Se reveal for false, a cor do texto é neutra, não verde/vermelho */}
                         <p className={`font-medium ${reveal ? (isCorrect ? "text-green-400" : "text-red-400") : "text-foreground"}`}>
                           {userAnswers.length > 0 ? userAnswers.join(" / ") : "(Em branco)"}
                         </p>
                       </div>
 
+                      {/* Gabarito só aparece se reveal for true */}
                       {reveal && !isCorrect && (
                         <div className="p-3 bg-green-500/5 rounded-md border border-green-500/10">
                           <span className="text-xs text-green-500/70 block mb-1">Gabarito:</span>

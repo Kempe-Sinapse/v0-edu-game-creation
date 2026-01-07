@@ -23,7 +23,6 @@ interface Question {
 }
 
 export function CreateGameForm({ teacherId, classes }: { teacherId: string; classes: Class[] }) {
-  // ... (manter imports e states existentes)
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,10 +32,9 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
   const [timeLimit, setTimeLimit] = useState("60")
   const [selectedClass, setSelectedClass] = useState<string>("")
   const [isPublished, setIsPublished] = useState(false)
-  const [revealAnswers, setRevealAnswers] = useState(true) // Novo state
+  const [revealAnswers, setRevealAnswers] = useState(true)
   const [questions, setQuestions] = useState<Question[]>([{ text: "", correctAnswers: [""], distractors: [""] }])
 
-  // ... (funções de addQuestion, removeQuestion, updates etc. mantêm-se iguais)
   const addQuestion = () => {
     setQuestions([...questions, { text: "", correctAnswers: [""], distractors: [""] }])
   }
@@ -51,8 +49,9 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
     const updated = [...questions]
     updated[index].text = value
 
+    // Detecta as lacunas (___) e ajusta o número de inputs de resposta
     const blankCount = (value.match(/_{3,}/g) || []).length
-    const limitedCount = Math.min(blankCount, 5)
+    const limitedCount = Math.min(blankCount, 5) // Limite de segurança
 
     if (limitedCount > updated[index].correctAnswers.length) {
       const diff = limitedCount - updated[index].correctAnswers.length
@@ -95,7 +94,7 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
     setIsLoading(true)
     setError(null)
 
-    // ... (validações mantêm-se iguais)
+    // Validações básicas
     if (!title.trim()) {
       setError("Por favor, insira um título para a tarefa")
       setIsLoading(false)
@@ -140,10 +139,14 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
           title: title.trim(),
           description: description.trim() || null,
           time_limit: Number.parseInt(timeLimit),
-          class_id: selectedClass || null,
+          
+          // --- CORREÇÃO AQUI ---
+          // Se for "none" ou string vazia, enviamos null para o banco
+          class_id: (selectedClass === "none" || !selectedClass) ? null : selectedClass,
+          
           is_published: isPublished,
           published_at: isPublished ? new Date().toISOString() : null,
-          reveal_answers: revealAnswers, // Adicionado
+          reveal_answers: revealAnswers,
         })
         .select()
         .single()
@@ -162,8 +165,10 @@ export function CreateGameForm({ teacherId, classes }: { teacherId: string; clas
 
       if (questionsError) throw questionsError
 
+      // Redirecionamento forçado para garantir refresh dos dados
       window.location.href = "/teacher"
     } catch (err) {
+      console.error("Erro ao criar jogo:", err)
       setError(err instanceof Error ? err.message : "Falha ao criar tarefa")
       setIsLoading(false)
     }
